@@ -1,0 +1,80 @@
+#Second_Hurdle
+
+############################### Second Hurdle#####################
+#importing dataset
+library(readxl)
+TrainingData<-read_excel("TrainingData.xlsx")
+TestData <- read_excel("TestData.xlsx")
+View(TrainingData)
+
+#checking missing data
+is.na(TrainingData)
+sum(is.na(TrainingData))
+is.na(TestData)
+sum(is.na(TestData))
+colnames(TrainingData)[colSums(is.na(TrainingData)) > 0]
+
+# Taking care of missing data
+library(mlr)
+#impute missing values by mean and mode
+imp <- impute(TrainingData, classes = list(numeric = imputeMean()), dummy.classes = "integer", dummy.type = "numeric")
+imp1 <- impute(TestData, classes = list(numeric = imputeMean()), dummy.classes = "integer", dummy.type = "numeric")
+
+
+Train_data1<-imp$data
+summary(Train_data1)
+Test_data1<-imp1$data
+summary(Test_data1)
+
+#Selecting Drivers
+library(Boruta)
+boruta_output <- Boruta(EQ ~ ., data=TrainData1, doTrace=0) 
+names(boruta_output)
+
+# Get significant variables including tentatives
+boruta_signif <- getSelectedAttributes(boruta_output, withTentative = TRUE)
+print(boruta_signif)  
+# Get significant variables without tentatives
+boruta_signif_wo <- getSelectedAttributes(boruta_output, withTentative = FALSE)
+print(boruta_signif_wo)
+
+# Plot variable importance
+plot(boruta_output, cex.axis=.7, las=2, xlab="", main="Variable Importance")  
+
+#Creating Data through selected drivers
+TrainData1<-Train_data1[c("EQ","Social_Search_Impressions","Inflation",
+                          "pct_PromoMarketDollars_Category","EQ_Category","EQ_Subcategory",
+                          "pct_PromoMarketDollars_Subcategory")]
+
+TestData1<-Test_data1[c("EQ","Social_Search_Impressions", "Inflation",
+                        "pct_PromoMarketDollars_Category","EQ_Category","EQ_Subcategory",
+                        "pct_PromoMarketDollars_Subcategory")]
+
+
+attach(TrainData1)
+
+
+library(vars)
+attach(TrainData1)
+EQ=diff(EQ)
+EQ_Category=diff(EQ_Category)
+pct_PromoMarketDollars_Subcategory=diff(pct_PromoMarketDollars_Subcategory)
+Inflation=diff(Inflation)
+pct_PromoMarketDollars_Category=diff(pct_PromoMarketDollars_Category)
+EQ_Subcategory=diff(EQ_Subcategory)
+Social_Search_Impressions=diff(Social_Search_Impressions)
+Median_Rainfall=diff(Median_Rainfall)
+
+#lag selection
+info.bv1 <- VARselect(rbind(TrainData1,TestData1), lag.max = 14, type = "both")
+info.bv1$selection
+data1=rbind(TrainData1,TestData1)
+model2=VAR(data1[1:34,],p=4,type="both",ic="AIC")
+model2
+k1<-predict(model2, n.ahead=5)
+model_mape<-MAPE(k1$fcst$EQ[1:5],data1[35:39, 1])*100     
+model_mape  #227.97
+
+#forecast for next 6 periods
+sales_forecast_2<-predict(model2, n.ahead=11)$fcst$EQ[6:11]
+sales_forecast_2
