@@ -17,7 +17,7 @@ is.na(Train_original)
 sum(is.na(Train_original))
 
 ##########################################################################
-#################Converting Traing set into period form####################
+#################Converting Traing set into period form###################
 ##########################################################################
 
 #since Training set is daywise and Test set is periodwise, so converting Traing set by period
